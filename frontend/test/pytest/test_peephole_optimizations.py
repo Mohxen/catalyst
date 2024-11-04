@@ -118,6 +118,35 @@ def test_merge_rotation_functionality(theta, backend):
 
 
 @pytest.mark.parametrize("theta", [42.42])
+def test_non_commutative_rotation_merge(theta, backend):
+
+    @qjit
+    def workflow():
+        @qml.qnode(qml.device(backend, wires=1))
+        def f(x):
+            qml.Rot(x, x / 2, x / 3, wires=0)
+            qml.Rot(x / 4, x / 5, x / 6, wires=0)
+            return qml.probs()
+
+        @merge_rotations
+        @qml.qnode(qml.device(backend, wires=1))
+        def g(x):
+            qml.Rot(x, x / 2, x / 3, wires=0)
+            qml.Rot(x / 4, x / 5, x / 6, wires=0)
+            return qml.probs()
+
+        return f(theta), g(theta)
+
+    @qml.qnode(qml.device("default.qubit", wires=1))
+    def reference(x):
+        qml.Rot(x, x / 2, x / 3, wires=0)
+        qml.Rot(x / 4, x / 5, x / 6, wires=0)
+        return qml.probs()
+
+    assert np.allclose(workflow()[0], workflow()[1])
+    assert np.allclose(workflow()[1], reference(theta))
+
+@pytest.mark.parametrize("theta", [42.42])
 def test_cancel_inverses_functionality_outside_qjit(theta, backend):
 
     @cancel_inverses
